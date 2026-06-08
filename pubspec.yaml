@@ -10,7 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_vpn_service: ^1.1.0
-  quick_settings: ^0.2.0
+  quick_settings: ^1.0.0+2
   flutter_local_notifications: ^17.2.3
 
 flutter:

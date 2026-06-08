@@ -4,7 +4,20 @@ import 'package:quick_settings/quick_settings.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 final notifications = FlutterLocalNotificationsPlugin();
-QuickSettingsTile? _quickTile;
+
+@pragma("vm:entry-point")
+Tile onTileClicked(Tile tile) {
+  if (tile.tileStatus == TileStatus.active) {
+    _stopDns();
+    tile.label = "DNS OFF";
+    tile.tileStatus = TileStatus.inactive;
+  } else {
+    _startDns();
+    tile.label = "DNS ON";
+    tile.tileStatus = TileStatus.active;
+  }
+  return tile;
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,66 +28,54 @@ void main() async {
     ),
   );
   
-  _initQuickSettingsTile();
+  QuickSettings.setup(onTileClicked: onTileClicked);
+  
   runApp(const MyApp());
 }
 
-void _initQuickSettingsTile() {
-  _quickTile = QuickSettingsTile(
-    title: 'DNS Toggle',
-    subtitle: 'Нажмите для переключения DNS',
-    icon: Icons.dns,
-    tileState: TileState.INACTIVE,
-    onClick: () async {
-      final isRunning = await FlutterVpnService.isRunning() ?? false;
-      
-      if (!isRunning) {
-        await _startDns();
-        _quickTile?.updateTile(TileState.ACTIVE);
-      } else {
-        await _stopDns();
-        _quickTile?.updateTile(TileState.INACTIVE);
-      }
-    },
-  );
-}
-
 Future<void> _startDns() async {
-  await FlutterVpnService.prepare();
-  await FlutterVpnService.addAddress("0.0.0.0", 0);
-  await FlutterVpnService.addRoute("0.0.0.0", 0);
-  await FlutterVpnService.setDnsAddresses(["1.1.1.1", "1.0.0.1"]);
-  await FlutterVpnService.establish();
-  
-  await notifications.show(
-    1,
-    'DNS Toggle',
-    'DNS профиль ВКЛЮЧЕН',
-    const NotificationDetails(
-      android: AndroidNotificationDetails(
-        'dns_channel',
-        'DNS Toggle',
-        importance: Importance.high,
+  try {
+    await FlutterVpnService.prepare();
+    await FlutterVpnService.addAddress("0.0.0.0", 0);
+    await FlutterVpnService.addRoute("0.0.0.0", 0);
+    await FlutterVpnService.setDnsAddresses(["1.1.1.1", "1.0.0.1"]);
+    await FlutterVpnService.establish();
+    
+    await notifications.show(
+      1,
+      'DNS Toggle',
+      '✅ DNS ВКЛЮЧЕН',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'dns_channel',
+          'DNS Toggle',
+          importance: Importance.high,
+        ),
       ),
-    ),
-  );
+    );
+  } catch (e) {
+    await notifications.show(3, 'Ошибка', e.toString(), const NotificationDetails(android: AndroidNotificationDetails('dns_channel', 'DNS Toggle')));
+  }
 }
 
 Future<void> _stopDns() async {
-  await FlutterVpnService.stop();
-  
-  await notifications.show(
-    2,
-    'DNS Toggle',
-    'DNS профиль ВЫКЛЮЧЕН',
-    const NotificationDetails(
-      android: AndroidNotificationDetails(
-        'dns_channel',
-        'DNS Toggle',
-        importance: Importance.high,
+  try {
+    await FlutterVpnService.stop();
+    await notifications.show(
+      2,
+      'DNS Toggle',
+      '❌ DNS ВЫКЛЮЧЕН',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'dns_channel',
+          'DNS Toggle',
+          importance: Importance.high,
+        ),
       ),
-    ),
-  );
+    );
+  } catch (e) {
+    await notifications.show(3, 'Ошибка', e.toString(), const NotificationDetails(android: AndroidNotificationDetails('dns_channel', 'DNS Toggle')));
+  }
 }
 
 class MyApp extends StatefulWidget {
@@ -103,10 +104,8 @@ class _MyAppState extends State<MyApp> {
   Future<void> _toggleDns() async {
     if (!_isDnsActive) {
       await _startDns();
-      _quickTile?.updateTile(TileState.ACTIVE);
     } else {
       await _stopDns();
-      _quickTile?.updateTile(TileState.INACTIVE);
     }
     await _checkStatus();
   }
@@ -124,15 +123,18 @@ class _MyAppState extends State<MyApp> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: _isDnsActive ? Colors.green[100] : Colors.red[100],
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  _isDnsActive ? '✅ DNS ВКЛЮЧЕН' : '❌ DNS ВЫКЛЮЧЕН',
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              Icon(
+                _isDnsActive ? Icons.vpn_key : Icons.vpn_lock,
+                size: 80,
+                color: _isDnsActive ? Colors.green : Colors.red,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                _isDnsActive ? 'DNS ВКЛЮЧЕН' : 'DNS ВЫКЛЮЧЕН',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: _isDnsActive ? Colors.green : Colors.red,
                 ),
               ),
               const SizedBox(height: 40),
@@ -142,18 +144,18 @@ class _MyAppState extends State<MyApp> {
                   backgroundColor: _isDnsActive ? Colors.red : Colors.green,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                  textStyle: const TextStyle(fontSize: 18),
                 ),
-                child: Text(_isDnsActive ? 'ВЫКЛЮЧИТЬ DNS' : 'ВКЛЮЧИТЬ DNS'),
+                child: Text(_isDnsActive ? 'ВЫКЛЮЧИТЬ' : 'ВКЛЮЧИТЬ'),
               ),
               const SizedBox(height: 30),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 30),
-                child: Text(
-                  'Чтобы добавить плитку в шторку, откройте настройки телефона → Быстрые настройки → DNS Toggle',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
+              ElevatedButton(
+                onPressed: () {
+                  QuickSettings.addTileToQuickSettings(
+                    label: 'DNS Toggle',
+                    drawableName: 'ic_quick_settings',
+                  );
+                },
+                child: const Text('➕ Добавить плитку в шторку'),
               ),
             ],
           ),
