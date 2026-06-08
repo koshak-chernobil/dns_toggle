@@ -1,0 +1,10 @@
+﻿.DS_Store
+*.log
+*.lock
+build/
+.dart_tool/
+.pub-cache/
+.pub/
+/local.properties
+*.iml
+.gradle/
