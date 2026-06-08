@@ -1,0 +1,10 @@
+def flutterRoot = localProperties.getProperty('flutter.sdk')
+apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+
+android {
+    compileSdk 34
+    defaultConfig {
+        minSdk 21
+        targetSdk 34
+    }
+}
