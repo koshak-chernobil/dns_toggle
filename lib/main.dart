@@ -163,4 +163,8 @@ class _MyAppState extends State<MyApp> {
       ),
     );
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> edff0379158912c54aae5ebb383a0c96a509f02a

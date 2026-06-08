@@ -14,4 +14,8 @@ dependencies:
   flutter_local_notifications: ^17.2.3
 
 flutter:
+<<<<<<< HEAD
   uses-material-design: true
+=======
+  uses-material-design: true
+>>>>>>> edff0379158912c54aae5ebb383a0c96a509f02a
